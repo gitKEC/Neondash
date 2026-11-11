@@ -1,8 +1,10 @@
 // Classement partagé (Upstash Redis, offre gratuite connectée au projet Vercel).
 // GET  /api/scores            -> top Infini + top étoiles
 // POST /api/scores {id,name,best,stars} -> enregistre le pseudo et les meilleurs scores
-const URL_ = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Nettoie les erreurs de copier-coller fréquentes (guillemets, espaces, « NOM= » devant la valeur)
+function clean(v) { return String(v || '').trim().replace(/^[A-Z_]+=/, '').replace(/^["'\s]+|["'\s]+$/g, ''); }
+const URL_ = clean(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL);
+const TOKEN = clean(process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN);
 const K = { names: 'nd:names', endless: 'nd:endless', stars: 'nd:stars' };
 const TOP = 50;
 
