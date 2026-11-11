@@ -1,0 +1,13 @@
+{
+  "name": "Neon Dash",
+  "short_name": "Neon Dash",
+  "description": "Jeu d'arcade néon : glisse, esquive, ne t'arrête jamais.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#05010f",
+  "theme_color": "#05010f",
+  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}
