@@ -800,14 +800,36 @@ function loadBoard(){
   });
 }
 var afterName=null;
-function openName(then){afterName=then||null;$('nameIn').value=save.name||'';$('nameErr').textContent='';show('nameScr');setTimeout(function(){try{$('nameIn').focus()}catch(e){}},80)}
+function openName(then){afterName=then||null;claimFor=null;$('nameOk').textContent='VALIDER';$('nameErr').style.color='#fb7185';$('nameIn').value=save.name||'';$('nameErr').textContent='';show('nameScr');setTimeout(function(){try{$('nameIn').focus()}catch(e){}},80)}
 function openBoard(){if(!save.name){openName(openBoard);return}show('board');loadBoard()}
+var claimFor=null;
+function nameDone(n){
+  save.name=n;persist();$('nameIn').blur();claimFor=null;$('nameOk').textContent='VALIDER';
+  if(afterName){var f=afterName;afterName=null;f()}else openBoard();
+}
 $('nameOk').addEventListener('click',function(){
   var n=$('nameIn').value.replace(/[<>]/g,'').trim().slice(0,16);
   if(n.length<2){$('nameErr').textContent='2 caractères minimum';return}
-  save.name=n;persist();$('nameIn').blur();
-  if(afterName){var f=afterName;afterName=null;f()}else openBoard();
+  if(claimFor&&claimFor.name.toLowerCase()===n.toLowerCase()){
+    /* c'est bien lui : on reprend son ancien compte du classement */
+    save.pid=claimFor.id;if(claimFor.best>save.best)save.best=claimFor.best;
+    nameDone(claimFor.name);return;
+  }
+  if(n.toLowerCase()===(save.name||'').toLowerCase()){nameDone(n);return}
+  $('nameOk').disabled=true;
+  fetch('/api/scores?claim='+encodeURIComponent(n),{cache:'no-store'}).then(function(r){return r.ok?r.json():{id:null}}).catch(function(){return{id:null}}).then(function(j){
+    $('nameOk').disabled=false;
+    if(j&&j.id&&j.id!==save.pid){
+      claimFor=j;
+      $('nameErr').style.color='#fde68a';
+      $('nameErr').textContent='« '+j.name+' » existe déjà ('+j.best+' pts). Si c\'est toi, touche RÉCUPÉRER. Sinon, choisis un autre pseudo.';
+      $('nameOk').textContent='RÉCUPÉRER';
+      return;
+    }
+    nameDone(n);
+  });
 });
+$('nameIn').addEventListener('input',function(){if(claimFor){claimFor=null;$('nameOk').textContent='VALIDER';$('nameErr').textContent='';$('nameErr').style.color='#fb7185'}});
 $('nameIn').addEventListener('keydown',function(e){if(e.key==='Enter')$('nameOk').click()});
 $('nameCancel').addEventListener('click',function(){afterName=null;toMenu()});
 $('boardBtn').addEventListener('click',openBoard);

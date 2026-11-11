@@ -59,6 +59,18 @@ async function board(id) {
 module.exports = async function handler(req, res) {
   if (!URL_ || !TOKEN) return send(res, 503, { error: 'NOSTORE', message: 'Base de données du classement non connectée.' });
   try {
+    if (req.method === 'GET' && req.query && req.query.claim) {
+      /* Retrouver son compte par son pseudo (après réinstallation de l'appli) */
+      const want = String(req.query.claim).trim().toLowerCase().slice(0, 16);
+      const all = (await pipeline([['HGETALL', K.names]]))[0] || [];
+      for (let i = 0; i + 1 < all.length; i += 2) {
+        if (String(all[i + 1]).trim().toLowerCase() === want) {
+          const sc = await pipeline([['ZSCORE', K.endless, all[i]], ['ZSCORE', K.stars, all[i]]]);
+          return send(res, 200, { id: all[i], name: all[i + 1], best: Number(sc[0] || 0), stars: Number(sc[1] || 0) });
+        }
+      }
+      return send(res, 200, { id: null });
+    }
     if (req.method === 'GET') {
       const id = String((req.query && req.query.id) || '').slice(0, 40);
       return send(res, 200, await board(/^[a-z0-9-]{8,40}$/i.test(id) ? id : null));
