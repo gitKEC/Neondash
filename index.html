@@ -357,7 +357,12 @@ function pickPattern(){
   var list=game.mode==='level'?game.lv.pats:PATTERNS_BY_WORLD[Math.min(3,game.theme)];
   if(game.t<5&&game.mode==='endless')return 'gap';
   if(game.mode==='level'&&game.dist<8)return 'gap';
-  var p=R()<.15?'gap':list[Math.floor(R()*list.length)];
+  /* tirage pondéré : les zigzags sont plus rares */
+  var WT={gap:1.2,double:1,pillars:1,slider:1,gate:.9,rotor:.9,zigzag:.45},tot=0,k;
+  for(k=0;k<list.length;k++)tot+=WT[list[k]]||1;
+  var rp=R()*tot,p=list[0];
+  for(k=0;k<list.length;k++){rp-=WT[list[k]]||1;if(rp<=0){p=list[k];break}}
+  if(R()<.22)p='gap';
   if(p===game.lastPattern){game.repeat=(game.repeat||0)+1}else game.repeat=0;
   if(p===game.lastPattern&&(p!=='gap'||game.repeat>=1)){var others=list.filter(function(x){return x!==p});p=others[Math.floor(R()*others.length)]||'gap'}
   return p;
@@ -366,7 +371,7 @@ function spawnPattern(y){
   var d=difficulty(),gk=game.mode==='level'?game.lv.gapK:1,g=lerp(3.3,2.15,d)*gk,p=pickPattern();
   g=Math.max(2.0,g);
   game.lastPattern=p;
-  var L=game.lane,reach=lerp(4.6,3.8,d),minShift=lerp(1.9,2.6,d),len=.5;
+  var L=game.lane,reach=lerp(4.4,3.6,d),minShift=lerp(1.6,2.2,d),len=.5;
   /* nouveau passage : toujours décalé d'au moins minShift par rapport au précédent */
   function near(half){
     var lo=half+.4,hi=10-half-.4,sg=R()<.5?-1:1,m=rr(minShift,Math.max(minShift+.2,reach)),x=L+sg*m;
@@ -387,8 +392,8 @@ function spawnPattern(y){
     if(R()<.5)addGem(rr(1,9),y-2);len=.55;
   }
   else if(p==='zigzag'){
-    var c=clamp(L+(R()<.5?-1:1)*rr(.8,1.6),3,7),gz=g*1.05,step=lerp(2.6,2.1,d);
-    for(var i=0;i<3;i++){var pc=c;c=clamp(c+(i%2?1:-1)*rr(1.8,2.8),gz/2+.3,10-gz/2-.3);gapWall(y-i*step,c,gz,true);if(i>0&&R()<.6)addGem((pc+c)/2,y-i*step+step/2+.25)}
+    var c=clamp(L+(R()<.5?-1:1)*rr(.8,1.4),3,7),gz=g*1.15,step=lerp(3.1,2.6,d);
+    for(var i=0;i<3;i++){var pc=c;c=clamp(c+(i%2?1:-1)*rr(1.3,2.1),gz/2+.3,10-gz/2-.3);gapWall(y-i*step,c,gz,true);if(i>0&&R()<.6)addGem((pc+c)/2,y-i*step+step/2+.25)}
     game.lane=c;len=2*step+.5;
   }
   else if(p==='gate'){
