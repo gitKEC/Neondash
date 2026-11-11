@@ -168,9 +168,10 @@ var WORLDS=[
    bg:['#000003','#06031c','#170b3d'],grid:'196,181,253',rail:'#e9d5ff',wall:['#fef9c3','#a16207'],wall2:['#e9d5ff','#7c3aed'],amb:'stars',tr:2,
    card:'linear-gradient(135deg,#0b0623,#2e1065)',accent:'#c4b5fd'}
 ];
-var PATTERNS_BY_WORLD=[['gap','double','pillars'],['gap','double','pillars','slider','zigzag'],['gap','double','zigzag','slider','gate','pillars'],['gap','double','zigzag','slider','gate','rotor','pillars']];
+var PATTERNS_BY_WORLD=[['gap','double','pillars','zigzag'],['gap','double','pillars','slider','zigzag'],['gap','double','zigzag','slider','gate','pillars'],['gap','double','zigzag','slider','gate','rotor','pillars']];
 function levelDef(w,i){
-  return {w:w,i:i,len:130+i*28+w*35,s0:6+w*1.2+i*.35,s1:8.2+w*1.5+i*.55,pats:PATTERNS_BY_WORLD[w],seed:1000+w*97+i*13,gapK:1-w*.04-i*.02};
+  var pats=PATTERNS_BY_WORLD[w].slice();if(w===0&&i>=2)pats.push('slider');
+  return {w:w,i:i,len:140+i*28+w*35,s0:7.2+w*1.1+i*.4,s1:9.4+w*1.4+i*.6,pats:pats,seed:1000+w*97+i*13,gapK:.93-w*.035-i*.02};
 }
 var NLV=5;
 
@@ -302,7 +303,7 @@ function reset(){
   game.finished=false;game.finishY=null;game.winT=0;game.over=false;game.killer=null;
 }
 function difficulty(){
-  if(game.mode==='level')return clamp((game.lv.w*5+game.lv.i)/19*.85+game.dist/game.lv.len*.15,0,1);
+  if(game.mode==='level')return clamp(.2+(game.lv.w*5+game.lv.i)/19*.7+game.dist/game.lv.len*.1,0,1);
   return clamp((game.speed-6)/10,0,1);
 }
 function curSpeed(){
@@ -312,16 +313,16 @@ function curSpeed(){
 function topY(){return -(H*0.78)/U-1}
 function addWall(x,y,w,h,vx,minX,maxX){var o={x:x,y:y,w:w,h:h||.5,vx:vx||0,minX:minX==null?0:minX,maxX:maxX==null?10:maxX,passed:false};walls.push(o);return o}
 function addGem(x,y){gems.push({x:x,y:y,got:false,a:R()*6});game.gemsTotal++}
-function gapWall(y,gc,g){
+function gapWall(y,gc,g,noGem){
   var a=gc-g/2,b=gc+g/2;
   if(a>0.05)addWall(0,y,a);
   if(b<9.95)addWall(b,y,10-b);
-  if(R()<.55)addGem(gc,y-1.6);
+  if(!noGem&&R()<.55)addGem(gc,y-1.6);
 }
 function pickPattern(){
   var list=game.mode==='level'?game.lv.pats:PATTERNS_BY_WORLD[Math.min(3,game.theme)];
   if(game.t<5&&game.mode==='endless')return 'gap';
-  if(game.mode==='level'&&game.dist<12)return 'gap';
+  if(game.mode==='level'&&game.dist<8)return 'gap';
   var p=R()<.3?'gap':list[Math.floor(R()*list.length)];
   if(p===game.lastPattern&&p!=='gap')p='gap';
   return p;
@@ -345,7 +346,7 @@ function spawnPattern(y){
   }
   else if(p==='zigzag'){
     var c=clamp(L,3,7),gz=g*1.05,step=lerp(2.6,2.1,d);
-    for(var i=0;i<3;i++){c=clamp(c+(i%2?1:-1)*rr(1.8,2.8),gz/2+.3,10-gz/2-.3);gapWall(y-i*step,c,gz)}
+    for(var i=0;i<3;i++){var pc=c;c=clamp(c+(i%2?1:-1)*rr(1.8,2.8),gz/2+.3,10-gz/2-.3);gapWall(y-i*step,c,gz,true);if(i>0&&R()<.6)addGem((pc+c)/2,y-i*step+step/2+.25)}
     game.lane=c;len=2*step+.5;
   }
   else if(p==='gate'){
@@ -373,6 +374,22 @@ function spawnPattern(y){
     len=gapY*(n-1)+1;
   }
   return len;
+}
+/* Retire ou déplace les gemmes trop proches d'un mur (inatteignables) */
+function fixGems(from){
+  for(var k=gems.length-1;k>=from;k--){
+    var g=gems[k],ok=true;
+    g.x=clamp(g.x,.9,9.1);
+    for(var j=0;j<walls.length&&ok;j++){
+      var w=walls[j];if(w.vx)continue;
+      var x0,x1,y0,y1;
+      if(w.rotor){x0=w.x-w.len/2;x1=w.x+w.len/2;y0=w.y-w.len/2;y1=w.y+w.len/2}else{x0=w.x;x1=w.x+w.w;y0=w.y;y1=w.y+w.h}
+      if(w.gate){x0=w.gate.side<0?0:w.gate.c+w.gate.minG/2;x1=w.gate.side<0?w.gate.c-w.gate.minG/2:10}
+      var dx=Math.max(x0-g.x,0,g.x-x1),dy=Math.max(y0-g.y,0,g.y-y1);
+      if(dx*dx+dy*dy<.85*.85)ok=false;
+    }
+    if(!ok){gems.splice(k,1);game.gemsTotal--}
+  }
 }
 function updateGate(w,t){
   var g=w.gate,open=lerp(g.minG,g.maxG,.5+.5*Math.sin(t*g.spd+g.ph)),a=clamp(g.c-open/2,0,10),b=clamp(g.c+open/2,0,10);
@@ -444,7 +461,7 @@ function update(dt){
     var stopSpawn=game.mode==='level'&&game.dist-topY()>game.lv.len-3;
     game.nextSpawn+=dy;
     if(game.nextSpawn>=0&&!stopSpawn){
-      var len=spawnPattern(topY());
+      var nG=gems.length,len=spawnPattern(topY());fixGems(nG);
       game.nextSpawn=-(len+lerp(6.2,4.2,difficulty()));
     }
     if(game.mode==='level'&&game.finishY==null&&game.dist>game.lv.len+topY()){game.finishY=topY()-1}
