@@ -70,6 +70,19 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .stars{font-size:40px;letter-spacing:8px;margin-top:16px}
 .stars .on{color:#facc15;text-shadow:0 0 16px rgba(250,204,21,.8)}
 .stars .off{color:rgba(255,255,255,.18)}
+.board{width:100%;max-width:400px;margin-top:14px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(255,255,255,.03);max-height:52vh;overflow-y:auto;touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.brow{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.06);font-size:15px;text-align:left}
+.brow:last-child{border-bottom:0}
+.brow b{font-family:'Orbitron',sans-serif;width:30px;color:#94a3b8;font-size:14px}
+.brow span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow em{font-style:normal;font-family:'Orbitron',sans-serif;font-size:15px}
+.brow.me{background:linear-gradient(90deg,rgba(34,211,238,.18),rgba(232,121,249,.12))}
+.brow.r1 b{color:#facc15}.brow.r2 b{color:#e2e8f0}.brow.r3 b{color:#fb923c}
+.tabs2{display:flex;gap:8px;margin-top:16px}
+.tabs2 button{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.12em;color:#94a3b8;border:1px solid rgba(255,255,255,.18);background:none;border-radius:999px;padding:9px 16px}
+.tabs2 button.on{color:#05010f;background:linear-gradient(90deg,#22d3ee,#e879f9);border-color:transparent}
+.nameIn{margin-top:20px;width:100%;max-width:300px;font-family:'Orbitron',sans-serif;font-size:20px;text-align:center;color:#fff;background:rgba(255,255,255,.06);border:2px solid #22d3ee;border-radius:14px;padding:14px;outline:none;-webkit-user-select:text;user-select:text}
+.rank{font-family:'Orbitron',sans-serif;font-size:14px;color:#facc15;margin-top:12px;min-height:18px;letter-spacing:.06em}
 .wtitle{font-family:'Orbitron',sans-serif;font-weight:900;font-size:30px;letter-spacing:.06em;margin-top:6px}
 </style>
 </head>
@@ -90,6 +103,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
       <button class="sec" id="shopBtn">◆ <span id="gemsMenu">0</span> · SKINS</button>
       <button class="sec" id="soundBtn">SON ON</button>
     </div>
+    <button class="sec" id="boardBtn" style="margin-top:12px;border-color:rgba(250,204,21,.5);color:#fde68a">🏆 CLASSEMENT</button>
     <div class="hint">Glisse à gauche et à droite pour diriger la boule</div>
   </section>
 
@@ -107,6 +121,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
       <div id="finalBest">0<small>RECORD</small></div>
       <div id="finalGems" style="color:#f0abfc">0<small>GEMMES</small></div>
     </div>
+    <div class="rank" id="rankOver"></div>
     <button class="play" id="againBtn">REJOUER</button>
     <div class="row"><button class="sec" id="menuBtn">MENU</button><button class="sec" id="lvBtn2">NIVEAUX</button><button class="sec" id="shopBtn2">SKINS</button></div>
   </section>
@@ -120,8 +135,26 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
       <div id="winBonus">+0<small>BONUS</small></div>
     </div>
     <p class="sub" id="winHint"></p>
+    <div class="rank" id="rankWin"></div>
     <button class="play" id="nextBtn">NIVEAU SUIVANT</button>
     <div class="row"><button class="sec" id="retryBtn">REJOUER</button><button class="sec" id="lvBtn3">NIVEAUX</button></div>
+  </section>
+
+  <section class="screen hide" id="board">
+    <div class="lbl">🏆 CLASSEMENT</div>
+    <div class="tabs2"><button data-t="endless" class="on">INFINI</button><button data-t="stars">ÉTOILES</button></div>
+    <div class="board" id="boardList"></div>
+    <div class="rank" id="boardMe"></div>
+    <div class="row"><button class="sec" id="nameBtn">✎ PSEUDO</button><button class="sec" id="boardRefresh">↻</button><button class="sec" id="boardBack">RETOUR</button></div>
+  </section>
+
+  <section class="screen hide" id="nameScr">
+    <div class="lbl">TON PSEUDO</div>
+    <p class="sub">Il apparaîtra dans le classement de tes amis.</p>
+    <input class="nameIn" id="nameIn" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Pseudo">
+    <div class="rank" id="nameErr" style="color:#fb7185"></div>
+    <button class="play" id="nameOk">VALIDER</button>
+    <div class="row"><button class="sec" id="nameCancel">ANNULER</button></div>
   </section>
 
   <section class="screen hide" id="shopScr">
@@ -184,8 +217,9 @@ var SKINS=[
   {id:'fire',name:'Feu',price:450,c1:'#fed7aa',c2:'#ef4444'},
   {id:'rainbow',name:'Arc-en-ciel',price:800,c1:'#ffffff',c2:'rainbow'}
 ];
-var save={best:store.get('best',0),gems:store.get('gems',0),owned:store.get('owned',['cyan']),skin:store.get('skin','cyan'),sound:store.get('sound',true),games:store.get('games',0),stars:store.get('stars',{})};
-function persist(){['best','gems','owned','skin','sound','games','stars'].forEach(function(k){store.set(k,save[k])})}
+function newId(){var c='abcdefghijklmnopqrstuvwxyz0123456789',o='';for(var i=0;i<24;i++)o+=c[Math.floor(Math.random()*36)];return o}
+var save={pid:store.get('pid',null)||newId(),name:store.get('name',''),best:store.get('best',0),gems:store.get('gems',0),owned:store.get('owned',['cyan']),skin:store.get('skin','cyan'),sound:store.get('sound',true),games:store.get('games',0),stars:store.get('stars',{})};
+function persist(){['pid','name','best','gems','owned','skin','sound','games','stars'].forEach(function(k){store.set(k,save[k])})}
 function skin(){for(var i=0;i<SKINS.length;i++)if(SKINS[i].id===save.skin)return SKINS[i];return SKINS[0]}
 function starsOf(w,i){return save.stars[w+'-'+i]||0}
 function unlocked(w,i){if(w===0&&i===0)return true;if(i>0)return starsOf(w,i-1)>0;return starsOf(w-1,NLV-1)>0}
@@ -418,7 +452,7 @@ cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',end
 var keys={};
 window.addEventListener('keydown',function(e){keys[e.key]=true});
 window.addEventListener('keyup',function(e){keys[e.key]=false});
-document.addEventListener('touchmove',function(e){if(!e.target.closest||!e.target.closest('#levels'))e.preventDefault()},{passive:false});
+document.addEventListener('touchmove',function(e){if(!e.target.closest||!e.target.closest('#levels,.board'))e.preventDefault()},{passive:false});
 document.addEventListener('gesturestart',function(e){e.preventDefault()});
 
 /* ---------- Boucle ---------- */
@@ -663,7 +697,7 @@ function drawPlayer(time){
 }
 
 /* ---------- Écrans ---------- */
-var SCREENS=['menu','levels','over','win','shopScr','pauseScr'];
+var SCREENS=['menu','levels','over','win','shopScr','pauseScr','board','nameScr'];
 function show(id){SCREENS.forEach(function(s){$(s).classList.toggle('hide',s!==id)})}
 function refreshMenu(){$('bestMenu').textContent=save.best;$('gemsMenu').textContent=save.gems;$('starsMenu').textContent=totalStars()+' / '+(WORLDS.length*NLV*3);setSound(save.sound)}
 function toast(t,col){var e=$('toast');e.textContent=t;e.style.color=col;e.style.textShadow='0 0 18px '+col;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.opacity=0},1100)}
@@ -700,6 +734,7 @@ function showOver(){
   $('finalGems').innerHTML='+'+game.gemsRun+'<small>GEMMES</small>';
   $('lvBtn2').classList.toggle('hide',game.mode!=='level');
   persist();show('over');
+  $('rankOver').textContent='';syncScores().then(function(d){rankLine(d,'rankOver')});
 }
 function showWin(){
   game.over=true;hideHud();
@@ -719,7 +754,60 @@ function showWin(){
   $('nextBtn').textContent=nw&&nw[0]!==lv.w?'MONDE SUIVANT':'NIVEAU SUIVANT';
   $('nextBtn').onclick=function(){if(nw)startLevel(nw[0],nw[1])};
   show('win');
+  $('rankWin').textContent='';syncScores().then(function(d){rankLine(d,'rankWin')});
 }
+/* ---------- Classement entre amis ---------- */
+var boardData=null,boardTab='endless';
+function api(method,body){
+  var url='/api/scores'+(method==='GET'?'?id='+save.pid:'');
+  return fetch(url,{method:method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'})
+    .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok)throw j;return j})});
+}
+function syncScores(){
+  if(!save.name)return Promise.resolve(null);
+  return api('POST',{id:save.pid,name:save.name,best:save.best,stars:totalStars()}).then(function(d){boardData=d;return d}).catch(function(){return null});
+}
+function rankLine(d,el){
+  if(!d||!d.me){$(el).textContent=save.name?'':'Choisis un pseudo pour entrer dans le classement 🏆';return}
+  var m=d.me,txt=game.mode==='endless'&&m.endlessRank?'🏆 '+m.endlessRank+(m.endlessRank===1?'er':'e')+' sur '+d.players+' en Infini':m.starsRank?'🏆 '+m.starsRank+(m.starsRank===1?'er':'e')+' sur '+d.players+' aux étoiles':'';
+  $(el).textContent=txt;
+}
+function renderBoard(){
+  document.querySelectorAll('.tabs2 button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===boardTab)});
+  var d=boardData,el=$('boardList');
+  if(!d){el.innerHTML='<div class="brow"><span>Chargement…</span></div>';return}
+  var list=d[boardTab]||[];
+  el.innerHTML=list.length?list.map(function(r,i){
+    return '<div class="brow r'+(i+1)+(r.id===save.pid?' me':'')+'"><b>'+(i+1)+'</b><span>'+esc(r.name)+(r.id===save.pid?' (toi)':'')+'</span><em>'+(boardTab==='stars'?'★ ':'')+r.score+'</em></div>'}).join('')
+    :'<div class="brow"><span>Personne pour l\'instant. Joue une partie et partage le lien à tes amis !</span></div>';
+  var m=d.me,rk=m&&(boardTab==='stars'?m.starsRank:m.endlessRank);
+  $('boardMe').textContent=save.name?(rk?'Toi : '+rk+(rk===1?'er':'e')+' sur '+d.players+' joueurs':'Joue pour apparaître dans ce classement'):'';
+}
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function loadBoard(){
+  boardData=null;renderBoard();
+  var p=save.name?syncScores().then(function(d){return d||api('GET')}):api('GET');
+  p.then(function(d){boardData=d;renderBoard()}).catch(function(e){
+    $('boardList').innerHTML='<div class="brow"><span>'+(e&&e.error==='NOSTORE'?'Le classement n\'est pas encore activé.':'Classement indisponible, vérifie ta connexion.')+'</span></div>';
+  });
+}
+var afterName=null;
+function openName(then){afterName=then||null;$('nameIn').value=save.name||'';$('nameErr').textContent='';show('nameScr');setTimeout(function(){try{$('nameIn').focus()}catch(e){}},80)}
+function openBoard(){if(!save.name){openName(openBoard);return}show('board');loadBoard()}
+$('nameOk').addEventListener('click',function(){
+  var n=$('nameIn').value.replace(/[<>]/g,'').trim().slice(0,16);
+  if(n.length<2){$('nameErr').textContent='2 caractères minimum';return}
+  save.name=n;persist();$('nameIn').blur();
+  if(afterName){var f=afterName;afterName=null;f()}else openBoard();
+});
+$('nameIn').addEventListener('keydown',function(e){if(e.key==='Enter')$('nameOk').click()});
+$('nameCancel').addEventListener('click',function(){afterName=null;toMenu()});
+$('boardBtn').addEventListener('click',openBoard);
+$('nameBtn').addEventListener('click',function(){openName(openBoard)});
+$('boardRefresh').addEventListener('click',loadBoard);
+$('boardBack').addEventListener('click',toMenu);
+document.querySelector('.tabs2').addEventListener('click',function(e){var b=e.target.closest('[data-t]');if(!b)return;boardTab=b.getAttribute('data-t');renderBoard()});
+
 function toMenu(){game.running=false;game.paused=false;game.theme=0;applyThemeUI();musicStop();hideHud();refreshMenu();show('menu')}
 function openLevels(){
   game.running=false;game.paused=false;musicStop();hideHud();
@@ -781,7 +869,7 @@ $('resumeBtn').addEventListener('click',resume);
 document.addEventListener('visibilitychange',function(){if(document.hidden)pause();else checkUpdate()});
 
 /* ---------- Démarrage ---------- */
-resize();reset();refreshMenu();show('menu');
+resize();reset();persist();refreshMenu();show('menu');
 requestAnimationFrame(frame);
 
 /* ---------- Mise à jour automatique ---------- */
