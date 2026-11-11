@@ -357,19 +357,27 @@ function pickPattern(){
   var list=game.mode==='level'?game.lv.pats:PATTERNS_BY_WORLD[Math.min(3,game.theme)];
   if(game.t<5&&game.mode==='endless')return 'gap';
   if(game.mode==='level'&&game.dist<8)return 'gap';
-  var p=R()<.3?'gap':list[Math.floor(R()*list.length)];
-  if(p===game.lastPattern&&p!=='gap')p='gap';
+  var p=R()<.15?'gap':list[Math.floor(R()*list.length)];
+  if(p===game.lastPattern){game.repeat=(game.repeat||0)+1}else game.repeat=0;
+  if(p===game.lastPattern&&(p!=='gap'||game.repeat>=1)){var others=list.filter(function(x){return x!==p});p=others[Math.floor(R()*others.length)]||'gap'}
   return p;
 }
 function spawnPattern(y){
   var d=difficulty(),gk=game.mode==='level'?game.lv.gapK:1,g=lerp(3.3,2.15,d)*gk,p=pickPattern();
   g=Math.max(2.0,g);
   game.lastPattern=p;
-  var L=game.lane,reach=lerp(4.5,3.6,d),len=.5;
-  function near(half){return clamp(L+rr(-reach,reach),half+.4,10-half-.4)}
+  var L=game.lane,reach=lerp(4.6,3.8,d),minShift=lerp(1.9,2.6,d),len=.5;
+  /* nouveau passage : toujours décalé d'au moins minShift par rapport au précédent */
+  function near(half){
+    var lo=half+.4,hi=10-half-.4,sg=R()<.5?-1:1,m=rr(minShift,Math.max(minShift+.2,reach)),x=L+sg*m;
+    if(x<lo||x>hi)x=L-sg*m;
+    if(x<lo||x>hi)x=(L-lo>hi-L)?lo+R()*.6:hi-R()*.6;
+    return clamp(x,lo,hi);
+  }
   if(p==='gap'){var gc0=near(g/2);gapWall(y,gc0,g);game.lane=gc0}
   else if(p==='double'){
-    var g2=g*.85,c1=rr(1.2,3.6),c2=rr(6.4,8.8);game.lane=Math.abs(c1-L)<Math.abs(c2-L)?c1:c2;
+    var g2=g*.85,c1,c2,tries=0;
+    do{c1=rr(1.2,3.6);c2=rr(6.4,8.8);tries++}while((Math.abs(c1-L)<minShift*.8||Math.abs(c2-L)<minShift*.8)&&tries<12);game.lane=Math.abs(c1-L)<Math.abs(c2-L)?c1:c2;
     addWall(0,y,c1-g2/2);addWall(c1+g2/2,y,(c2-g2/2)-(c1+g2/2));addWall(c2+g2/2,y,10-(c2+g2/2));
     addGem(R()<.5?c1:c2,y-1.6);
   }
@@ -379,7 +387,7 @@ function spawnPattern(y){
     if(R()<.5)addGem(rr(1,9),y-2);len=.55;
   }
   else if(p==='zigzag'){
-    var c=clamp(L,3,7),gz=g*1.05,step=lerp(2.6,2.1,d);
+    var c=clamp(L+(R()<.5?-1:1)*rr(.8,1.6),3,7),gz=g*1.05,step=lerp(2.6,2.1,d);
     for(var i=0;i<3;i++){var pc=c;c=clamp(c+(i%2?1:-1)*rr(1.8,2.8),gz/2+.3,10-gz/2-.3);gapWall(y-i*step,c,gz,true);if(i>0&&R()<.6)addGem((pc+c)/2,y-i*step+step/2+.25)}
     game.lane=c;len=2*step+.5;
   }
@@ -397,7 +405,7 @@ function spawnPattern(y){
     addGem(rc<5?rc+3:rc-3,y);game.lane=rc<5?Math.min(9,rc+3):Math.max(1,rc-3);len=1.5;
   }
   else{
-    var n=d>.5?3:2,lane=clamp(L+rr(-reach,reach),1.5,8.5),gapY=lerp(2.6,2.1,d);game.lane=lane;
+    var n=d>.5?3:2,lane=clamp(near(.5),1.5,8.5),gapY=lerp(2.6,2.1,d);game.lane=lane;
     for(var j=0;j<n;j++){
       var px,tries=0;
       do{px=rr(.2,8.8);tries++}while(Math.abs(px+.5-lane)<1.9&&tries<40);
