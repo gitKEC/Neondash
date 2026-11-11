@@ -788,7 +788,7 @@ function loadBoard(){
   boardData=null;renderBoard();
   var p=save.name?syncScores().then(function(d){return d||api('GET')}):api('GET');
   p.then(function(d){boardData=d;renderBoard()}).catch(function(e){
-    $('boardList').innerHTML='<div class="brow"><span>'+(e&&e.error==='NOSTORE'?'Le classement n\'est pas encore activé.':'Classement indisponible, vérifie ta connexion.')+'</span></div>';
+    $('boardList').innerHTML='<div class="brow"><span>'+(e&&e.error==='NOSTORE'?'Le classement n\'est pas encore activé.':'Classement indisponible'+(e&&e.message?' : '+esc(e.message):', vérifie ta connexion.'))+'</span></div>';
   });
 }
 var afterName=null;
